@@ -5,22 +5,30 @@
 
 #define buttonpin 13
 bool released = true;
+bool wave = 0;
 int t = 1;
+int mginfo[4];
 
 // MG90 Mata;
+// MG90 emge;
+
 Servo mata;
 
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
     mata.attach(2);
-    mata.write(0);
+
+    // emge.attach(2);
+
     pinMode(buttonpin, INPUT_PULLUP);
 
-    // TASK::PlayMotion();
+    TASK::PlayMotion();
+    // PlayLeftRigth(40, 140, 2000);
+    // emge.PlayAngle(180, 3000);
 }
 
 void loop() {
-    // put your main code here, to run repeatedly:
-    PlayAngle(180, 3000);
+    if (millis() < 282000) Serial.println("loop");
+    delay(1000);
 }
