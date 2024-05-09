@@ -3,8 +3,9 @@
 extern Servo mata;
 TaskHandle_t MG_task = NULL;
 //                    Angle frame
-int motion_mg[141][2] = {
-    {0, 1500},
+int motion_mg[142][2] = {
+    {0, 0},
+    {0, 2000},
     {90, 3000},
     {0, 4500},
     {180, 7500},
@@ -144,82 +145,48 @@ int motion_mg[141][2] = {
     {180, 13500 + 262500},
     {0, 16500 + 262500},
     {180, 18000 + 262500},
-    {0, 19500 + 262500},
-    // {90, 3000 + 282000},
-    // {0, 4500 + 282000},
-    // {180, 7500 + 282000},
-    // {0, 9000 + 282000},
-    // {180, 10500 + 282000},
-    // {90, 12000 + 282000},
-    // {180, 13500 + 282000},
-    // {0, 16500 + 282000},
-    // {180, 18000 + 282000},
-    // {0, 19500 + 282000},
-    // {90, 3000 + 301500},
-    // {0, 4500 + 301500},
-    // {180, 7500 + 301500},
-    // {0, 9000 + 301500},
-    // {180, 10500 + 301500},
-    // {90, 12000 + 301500},
-    // {180, 13500 + 301500},
-    // {0, 16500 + 301500},
-    // {180, 18000 + 301500},
-    // {0, 19500 + 301500},
-    // {90, 3000 + 321000},
-    // {0, 4500 + 321000},
-    // {180, 7500 + 321000},
-    // {0, 9000 + 321000},
-    // {180, 10500 + 321000},
-    // {90, 12000 + 321000},
-    // {180, 13500 + 321000},
-    // {0, 16500 + 321000},
-    // {180, 18000 + 321000},
-    // {0, 19500 + 321000},
-    // {90, 3000 + 340500},
-    // {0, 4500 + 340500},
-    // {180, 7500 + 340500},
-    // {0, 9000 + 340500},
-    // {180, 10500 + 340500},
-    // {90, 12000 + 340500},
-    // {180, 13500 + 340500},
-    // {0, 16500 + 340500},
-    // {180, 18000 + 340500},
-    // {0, 19500 + 340500},
-    // {90, 3000 + 360000},
-    // {0, 4500 + 360000},
-    // {180, 7500 + 360000},
-    // {0, 9000 + 360000},
-    // {180, 10500 + 360000},
-    // {90, 12000 + 360000},
-    // {180, 13500 + 360000},
-    // {0, 16500 + 360000},
-    // {180, 18000 + 360000},
-    // {0, 19500 + 360000},
-    // {90, 3000 + 379500},
-    // {0, 4500 + 379500},
-    // {180, 7500 + 379500},
-    // {0, 9000 + 379500},
-    // {180, 10500 + 379500},
-    // {90, 12000 + 379500},
-    // {180, 13500 + 379500},
-    // {0, 16500 + 379500},
-    // {180, 18000 + 379500},
-    // {0, 19500 + 379500}
+    {0, 19500 + 262500}
+    // angle , millis
+
 };
-void TASK::PlayMotion() {
+void TASK2::PlayMotion() {
+    Serial.println("Play Motion");
     xTaskCreate([](void* pvParameters) {
-        for (int j = 1; j < 141; j++) {
-            int currentAngle = motion_mg[j - 1][0];
-            int direction = motion_mg[j][0] > currentAngle ? 1 : -1;
-            int interval = (motion_mg[j][1] - motion_mg[j - 1][1]) / abs(motion_mg[j][0] - currentAngle);
+        mata.attach(2);
+        int currentAngle;
+        int direction;
+        float interval;
+        int totalDelay = 0;
+        for (int j = 1; j < int(sizeof(motion_mg) / sizeof(motion_mg[0])); j++) {
+            currentAngle = motion_mg[j - 1][0];
+            direction = motion_mg[j][0] > currentAngle ? 1 : -1;
+            float sisa = 0;
             for (int i = currentAngle; i != motion_mg[j][0]; i += direction) {
                 mata.write(i);
+                interval = static_cast<float>((motion_mg[j][1] - motion_mg[j - 1][1])) / abs(motion_mg[j][0] - currentAngle);
+                sisa += interval - int(interval);
+                if (sisa >= 1.00) {
+                    sisa -= 1.00;
+                    interval += 1.00;
+                }
+                totalDelay += int(interval);
                 vTaskDelay(interval * portTICK_PERIOD_MS);
             }
+            mata.write(motion_mg[j][0]);
+            vTaskDelay((motion_mg[j][1] - totalDelay) * portTICK_PERIOD_MS);
+            totalDelay += motion_mg[j][1] - totalDelay;
         }
+        Serial.println("MG MOTION Done");
+        Serial.print("Total Delay : ");
+        Serial.println(totalDelay);
+        Serial.print("Total Millis : ");
+        Serial.println(motion_mg[sizeof(motion_mg) / sizeof(motion_mg[0]) - 1][1]);
+        Serial.print("Current Millis : ");
+        Serial.println(millis());
+
         vTaskDelete(MG_task);
     },
-                "MG90", 2000, NULL, 1, &MG_task);
+                "MG90", 10000, NULL, 1, &MG_task);
 }
 extern int mginfo[4];
 
@@ -228,10 +195,6 @@ void PlayLeftRigth(int angle1, int angle2, int duration) {
     mginfo[1] = angle2;
     mginfo[2] = angle2 > angle1 ? 1 : -1;
     mginfo[3] = duration / abs(angle2 - angle1);
-
-    if (MG_task != NULL && eTaskGetState(MG_task) == eTaskState::eBlocked) {
-        vTaskDelete(MG_task);
-    }
 
     xTaskCreate([](void* pvParameters) {
         for (;;) {

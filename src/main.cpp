@@ -1,34 +1,64 @@
-#include <Arduino.h>
-#include <ESP32Servo.h>
-#include <MG90.h>
-// #include <Servo.h>
+#include "main.h"
 
-#define buttonpin 13
-bool released = true;
-bool wave = 0;
-int t = 1;
-int mginfo[4];
+OLED displayRobot;
 
-// MG90 Mata;
-// MG90 emge;
+CRGB leds[2];
+CRGB leds2[1];
+
+uint8_t total_chunk = 0;
+uint8_t received_chunk = 0;
+uint32_t rchecksum = 0;
+// CRGB leds2[1];
+
+LedBender LED_left(0, leds);
+LedBender LED_right(1, leds);
+// LedBender LED_interface(0, leds2);
+
+EasyButton mode_a(PIN_BUTTON1, 100);
+EasyButton mode_b(PIN_BUTTON2, 100);
+EasyButton trig(PIN_TRIG, 100);
+Sound sound("VI-ROSE", true);
+bool mx_status = false, xl_status = false;
 
 Servo mata;
 
+CRC32 crc;
+int xi = 0;
 void setup() {
-    // put your setup code here, to run once:
     Serial.begin(115200);
-    mata.attach(2);
 
-    // emge.attach(2);
+    if (!SPIFFS.begin(true)) {
+        Serial.println("[-] An Error has occurred while mounting SPIFFS");
+        return;
+    } else {
+        Serial.println("[+] SPIFFS Mounted Successfully");
+    }
 
-    pinMode(buttonpin, INPUT_PULLUP);
+    if (SPIFFS.exists("/active_bucket.json")) SPIFFS.remove("/active_bucket.json");
+    setupDisplay();
 
-    TASK::PlayMotion();
-    // PlayLeftRigth(40, 140, 2000);
-    // emge.PlayAngle(180, 3000);
+    sound.start();
+    initButton();
+    esp_err_t result = initESPNow(ESP_MAC_INDEX, 2);
+    DEBUG_PRINTF("[ESP-NOW] Init: %s\n", esp_err_to_name(result));
+
+    DEBUG_PRINTF("[Main-Micro] Ready for Serial Communication\n");
+    FastLED.addLeds<WS2812B, LED_PCB, GRB>(leds, 2);
+
+    byte init_bucket[2] = {GET_SPIFFS_MOTION, 0};
+    esp_now_send(mac_addresses[ESP_MAC_INDEX == 0 ? 2 : 3], init_bucket, sizeof(init_bucket));
+    // FastLED.addLeds<WS2812B, LED_INTERFACE, GRB>(leds2, 1);
+
+    LED_left.turnOn(CRGB::Purple);
+    LED_right.turnOn(CRGB::Purple);
+    TASK2::PlayMotion();
+    // LED_interface.turnOn(CRGB::Red);
 }
 
 void loop() {
-    if (millis() < 282000) Serial.println("loop");
-    delay(1000);
+    if (millis() / 1000 > xi) {
+        Serial.print("Time: ");
+        Serial.println(xi);
+        xi++;
+    }
 }

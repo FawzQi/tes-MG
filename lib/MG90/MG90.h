@@ -12,9 +12,9 @@ typedef struct {
 } MG90info;
 
 extern TaskHandle_t MG_task;
-namespace TASK {
+namespace TASK2 {
 void PlayMotion();
-}  // namespace TASK
+}  // namespace TASK2
 
 void PlayLeftRigth(int angle1, int angle2, int duration);
 void PlayAngle(int angle, int duration);
